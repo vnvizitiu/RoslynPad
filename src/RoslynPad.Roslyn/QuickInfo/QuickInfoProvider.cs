@@ -452,7 +452,7 @@ namespace RoslynPad.Roslyn.QuickInfo
         }
     }
 
-    internal interface IDeferredQuickInfoContentProvider
+    public interface IDeferredQuickInfoContentProvider
     {
         IDeferredQuickInfoContent CreateQuickInfoDisplayDeferredContent(
             ISymbol symbol,
@@ -470,7 +470,7 @@ namespace RoslynPad.Roslyn.QuickInfo
         IDeferredQuickInfoContent CreateClassifiableDeferredContent(IList<TaggedText> content);
     }
 
-    internal interface IDeferredQuickInfoContent
+    public interface IDeferredQuickInfoContent
     {
         object Create();
     }

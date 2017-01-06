@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Composition.Hosting;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -33,7 +34,11 @@ namespace RoslynPad
             var locator = container.CreateContainer().GetExport<IServiceLocator>();
 
             _viewModel = locator.GetInstance<MainViewModel>();
-            _viewModel.Initialize();
+            _viewModel.Initialize(new[]
+            {
+                Assembly.Load("RoslynPad.Roslyn.Windows"),
+                Assembly.Load("RoslynPad.Editor.Windows")
+            });
 
             DataContext = _viewModel;
             InitializeComponent();

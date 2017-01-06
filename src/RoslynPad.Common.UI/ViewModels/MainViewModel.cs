@@ -30,7 +30,7 @@ namespace RoslynPad.UI
 
         public DocumentViewModel DocumentRoot { get; private set; }
         public NuGetConfiguration NuGetConfiguration { get; }
-        public RoslynHost RoslynHost { get; }
+        public RoslynHost RoslynHost { get; private set; }
 
         [ImportingConstructor]
         public MainViewModel(IServiceLocator serviceLocator, ITelemetryProvider telemetryProvider, ICommandProvider commands, NuGetViewModel nugetViewModel)
@@ -42,12 +42,6 @@ namespace RoslynPad.UI
 
             NuGet = nugetViewModel;
             NuGetConfiguration = new NuGetConfiguration(NuGet.GlobalPackageFolder, NuGetPathVariableName);
-            RoslynHost = new RoslynHost(NuGetConfiguration, new[]
-            {
-                // TODO: xplat
-                Assembly.Load("RoslynPad.Roslyn.Windows"),
-                Assembly.Load("RoslynPad.Editor.Windows")
-            });
 
             NewDocumentCommand = commands.Create(CreateNewDocument);
             CloseCurrentDocumentCommand = commands.CreateAsync(CloseCurrentDocument);
@@ -63,8 +57,10 @@ namespace RoslynPad.UI
             OpenDocuments.CollectionChanged += (sender, args) => OnPropertyChanged(nameof(HasNoOpenDocuments));
         }
 
-        public void Initialize()
+        public void Initialize(IEnumerable<Assembly> additionalAssemblies = null)
         {
+            RoslynHost = new RoslynHost(NuGetConfiguration, additionalAssemblies);
+
             OpenAutoSavedDocuments();
 
             if (HasCachedUpdate())
