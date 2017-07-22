@@ -63,8 +63,8 @@ namespace RoslynPad.Editor.Windows
 
         public Brush CompletionBackground
         {
-            get { return (Brush)GetValue(CompletionBackgroundProperty); }
-            set { SetValue(CompletionBackgroundProperty, value); }
+            get => (Brush)GetValue(CompletionBackgroundProperty);
+            set => SetValue(CompletionBackgroundProperty, value);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -96,8 +96,8 @@ namespace RoslynPad.Editor.Windows
 
         public event ToolTipRequestEventHandler ToolTipRequest
         {
-            add { AddHandler(ToolTipRequestEvent, value); }
-            remove { RemoveHandler(ToolTipRequestEvent, value); }
+            add => AddHandler(ToolTipRequestEvent, value);
+            remove => RemoveHandler(ToolTipRequestEvent, value);
         }
 
         private void OnVisualLinesChanged(object sender, EventArgs e)
@@ -159,8 +159,7 @@ namespace RoslynPad.Editor.Windows
             }
             _toolTip.PlacementTarget = this; // required for property inheritance
 
-            var stringContent = args.ContentToShow as string;
-            if (stringContent != null)
+            if (args.ContentToShow is string stringContent)
             {
                 _toolTip.Content = new TextBlock
                 {
@@ -266,8 +265,8 @@ namespace RoslynPad.Editor.Windows
                 {
                     MinWidth = 300,
                     Background = CompletionBackground,
-                    CloseWhenCaretAtBeginning = triggerMode == TriggerMode.Completion,
-                    UseHardSelection = results.UseHardSelection
+                    CloseWhenCaretAtBeginning = triggerMode == TriggerMode.Completion || triggerMode == TriggerMode.Text,
+                    UseHardSelection = results.UseHardSelection,
                 };
 
                 if (completionChar != null && char.IsLetterOrDigit(completionChar.Value))

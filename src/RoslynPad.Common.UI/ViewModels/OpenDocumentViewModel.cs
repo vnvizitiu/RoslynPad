@@ -46,8 +46,7 @@ namespace RoslynPad.UI
         private ObservableCollection<ResultObject> ResultsInternal
         {
             // ReSharper disable once UnusedMember.Local
-            get { return _results; }
-            set
+            get => _results; set
             {
                 _results = value;
                 OnPropertyChanged(nameof(Results));
@@ -184,8 +183,7 @@ namespace RoslynPad.UI
 
         public Platform Platform
         {
-            get { return _platform; }
-            set
+            get => _platform; set
             {
                 if (SetProperty(ref _platform, value))
                 {
@@ -246,10 +244,7 @@ namespace RoslynPad.UI
                     result = dialog.Result;
                     if (result == SaveResult.Save)
                     {
-                        if (Document?.IsAutoSave == true)
-                        {
-                            File.Delete(Document.Path);
-                        }
+                        Document?.DeleteAutoSave();
                         Document = MainViewModel.AddDocument(dialog.DocumentName);
                         OnPropertyChanged(nameof(Title));
                     }
@@ -262,12 +257,19 @@ namespace RoslynPad.UI
                     dialog.Show();
                     result = dialog.Result;
                 }
+
                 if (result == SaveResult.Save)
                 {
                     // ReSharper disable once PossibleNullReferenceException
                     await SaveDocument(Document.GetSavePath()).ConfigureAwait(true);
                     IsDirty = false;
                 }
+
+                if (result != SaveResult.Cancel)
+                {
+                    Document?.DeleteAutoSave();
+                }
+
                 return result;
             }
             finally
@@ -334,8 +336,7 @@ namespace RoslynPad.UI
 
         public bool IsRunning
         {
-            get { return _isRunning; }
-            private set
+            get => _isRunning; private set
             {
                 if (SetProperty(ref _isRunning, value))
                 {
@@ -481,8 +482,7 @@ namespace RoslynPad.UI
         {
             _dispatcher.InvokeAsync(() =>
             {
-                var list = o as IList<ResultObject>;
-                if (list != null)
+                if (o is IList<ResultObject> list)
                 {
                     foreach (var resultObject in list)
                     {
@@ -517,8 +517,7 @@ namespace RoslynPad.UI
 
         public bool IsDirty
         {
-            get { return _isDirty; }
-            private set { SetProperty(ref _isDirty, value); }
+            get => _isDirty; private set => SetProperty(ref _isDirty, value);
         }
 
         public event EventHandler EditorFocus;

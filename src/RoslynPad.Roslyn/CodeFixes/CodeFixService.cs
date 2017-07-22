@@ -300,7 +300,7 @@ namespace RoslynPad.Roslyn.CodeFixes
                     document, span, diagnostics, result, lazySuppressionProvider.Value,
                     hasFix: d => lazySuppressionProvider.Value.CanBeSuppressedOrUnsuppressed(d),
                     getFixes: async dxs => (await lazySuppressionProvider.Value.GetSuppressionsAsync(
-                        document, span, dxs, cancellationToken)).AsImmutable(),
+                        document, span, dxs, cancellationToken).ConfigureAwait(false)).AsImmutable(),
                     cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
@@ -688,8 +688,7 @@ namespace RoslynPad.Roslyn.CodeFixes
                 {
                     // check whether the analyzer reference knows how to return fixers directly.
                     // ReSharper disable once SuspiciousTypeConversion.Global
-                    var codeFixProviderFactory = _reference as ICodeFixProviderFactory;
-                    if (codeFixProviderFactory != null)
+                    if (_reference is ICodeFixProviderFactory codeFixProviderFactory)
                     {
                         return codeFixProviderFactory.GetFixers();
                     }

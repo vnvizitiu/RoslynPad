@@ -34,6 +34,8 @@
     <AssemblyOriginatorKeyFile>..\Keys\RoslynInternalKey.Private.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -42,19 +44,21 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Services\IApplicationSettings.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <DependentUpon>Settings.settings</DependentUpon>
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <Compile Include="Services\SystemCompositionServiceLocator.cs" />
+    <Compile Include="Settings.cs" />
     <Compile Include="ViewModels\DocumentViewModel.cs" />
     <Compile Include="Dialogs\IDialog.cs" />
     <Compile Include="Dialogs\IFolderBrowserDialog.cs" />
     <Compile Include="Dialogs\IRenameSymbolDialog.cs" />
-    <Compile Include="Dialogs\IReportProblemDialog.cs" />
     <Compile Include="Dialogs\ISaveDocumentDialog.cs" />
     <Compile Include="Dialogs\ISaveFileDialog.cs" />
     <Compile Include="Services\ITelemetryProvider.cs" />
@@ -66,10 +70,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="project.json" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+      <CustomToolNamespace>RoslynPad.Properties</CustomToolNamespace>
     </None>
   </ItemGroup>
   <ItemGroup>

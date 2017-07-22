@@ -19,18 +19,30 @@ namespace RoslynPad.Roslyn.Scripting
     /// </summary>
     public sealed class ScriptRunner
     {
+        
         private static readonly string _globalAssemblyNamePrefix = "\u211B\u2118*" + Guid.NewGuid();
-
+        
         private readonly InteractiveAssemblyLoader _assemblyLoader;
         private Func<object[], Task<object>> _lazyExecutor;
         private Compilation _lazyCompilation;
+        private readonly OptimizationLevel _optimizationLevel;
+        private readonly bool _checkOverflow;
+        private readonly bool _allowUnsafe;
 
-        public ScriptRunner(string code, CSharpParseOptions parseOptions = null, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary, Platform platform = Platform.AnyCpu, IEnumerable<MetadataReference> references = null, IEnumerable<string> usings = null, string filePath = null, string workingDirectory = null, MetadataReferenceResolver metadataResolver = null, SourceReferenceResolver sourceResolver = null)
+        public ScriptRunner(string code, CSharpParseOptions parseOptions = null, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
+            Platform platform = Platform.AnyCpu, IEnumerable<MetadataReference> references = null,
+            IEnumerable<string> usings = null, string filePath = null, string workingDirectory = null, 
+            MetadataReferenceResolver metadataResolver = null, SourceReferenceResolver sourceResolver = null,
+            InteractiveAssemblyLoader assemblyLoader = null, 
+            OptimizationLevel optimizationLevel = OptimizationLevel.Debug, bool checkOverflow = false, bool allowUnsafe = true)
         {
+            _optimizationLevel = optimizationLevel;
+            _checkOverflow = checkOverflow;
+            _allowUnsafe = allowUnsafe;
             Code = code;
             OutputKind = outputKind;
             Platform = platform;
-            _assemblyLoader = new InteractiveAssemblyLoader();
+            _assemblyLoader = assemblyLoader ?? new InteractiveAssemblyLoader();
             ParseOptions = (parseOptions ?? new CSharpParseOptions())
                                .WithKind(SourceCodeKind.Script)
                                .WithPreprocessorSymbols(RoslynHost.PreprocessorSymbols);
@@ -183,15 +195,16 @@ namespace RoslynPad.Roslyn.Scripting
                 {
                     return null;
                 }
-
+                
                 foreach (var referencedAssembly in compilation.References.Select(
-                    x => new { Key = x, Value = compilation.GetAssemblyOrModuleSymbol(x) }))
+                    x => new { Key = x, Value = compilation.GetAssemblyOrModuleSymbol(x) as IAssemblySymbol }))
                 {
+                    if (referencedAssembly.Value == null) continue;
+                    
                     var path = (referencedAssembly.Key as PortableExecutableReference)?.FilePath;
-                    if (path != null)
-                    {
-                        _assemblyLoader.RegisterDependency(((IAssemblySymbol)referencedAssembly.Value).Identity, path);
-                    }
+                    if (path == null) continue;
+
+                    _assemblyLoader.RegisterDependency(referencedAssembly.Value.Identity, path);
                 }
 
                 peStream.Position = 0;
@@ -245,9 +258,9 @@ namespace RoslynPad.Roslyn.Scripting
                 mainTypeName: null,
                 scriptClassName: "Program",
                 usings: Usings,
-                optimizationLevel: OptimizationLevel.Debug, // TODO
-                checkOverflow: false,                       // TODO
-                allowUnsafe: true,                          // TODO
+                optimizationLevel: _optimizationLevel,
+                checkOverflow: _checkOverflow,
+                allowUnsafe: _allowUnsafe,
                 platform: Platform,
                 warningLevel: 4,
                 xmlReferenceResolver: null,
@@ -279,8 +292,7 @@ namespace RoslynPad.Roslyn.Scripting
             var references = ImmutableList.CreateBuilder<MetadataReference>();
             foreach (var reference in References)
             {
-                var unresolved = reference as UnresolvedMetadataReference;
-                if (unresolved != null)
+                if (reference is UnresolvedMetadataReference unresolved)
                 {
                     var resolved = MetadataResolver.ResolveReference(unresolved.Reference, null, unresolved.Properties);
                     if (!resolved.IsDefault)

@@ -5,15 +5,13 @@ using ICSharpCode.AvalonEdit.Document;
 
 namespace RoslynPad.Editor.Windows
 {
-    internal sealed class TextMarker : TextSegment
+    public sealed class TextMarker : TextSegment
     {
         private readonly TextMarkerService _service;
 
         public TextMarker(TextMarkerService service, int startOffset, int length)
         {
-            if (service == null)
-                throw new ArgumentNullException(nameof(service));
-            _service = service;
+            _service = service ?? throw new ArgumentNullException(nameof(service));
             StartOffset = startOffset;
             Length = length;
         }
@@ -41,8 +39,7 @@ namespace RoslynPad.Editor.Windows
 
         public Color? BackgroundColor
         {
-            get { return _backgroundColor; }
-            set
+            get => _backgroundColor; set
             {
                 if (_backgroundColor != value)
                 {
@@ -56,8 +53,7 @@ namespace RoslynPad.Editor.Windows
 
         public Color? ForegroundColor
         {
-            get { return _foregroundColor; }
-            set
+            get => _foregroundColor; set
             {
                 if (_foregroundColor != value)
                 {
@@ -71,8 +67,7 @@ namespace RoslynPad.Editor.Windows
 
         public FontWeight? FontWeight
         {
-            get { return _fontWeight; }
-            set
+            get => _fontWeight; set
             {
                 if (_fontWeight != value)
                 {
@@ -86,8 +81,7 @@ namespace RoslynPad.Editor.Windows
 
         public FontStyle? FontStyle
         {
-            get { return _fontStyle; }
-            set
+            get => _fontStyle; set
             {
                 if (_fontStyle != value)
                 {
@@ -103,8 +97,7 @@ namespace RoslynPad.Editor.Windows
 
         public Color MarkerColor
         {
-            get { return _markerColor; }
-            set
+            get => _markerColor; set
             {
                 if (_markerColor != value)
                 {

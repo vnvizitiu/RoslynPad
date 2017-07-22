@@ -35,7 +35,8 @@ namespace RoslynPad.Editor.Windows
     {
         private readonly IDocument _document;
         private readonly DocumentId _documentId;
-        private readonly RoslynHost _roslynHost;
+        private readonly IRoslynHost _roslynHost;
+        private readonly IClassificationHighlightColors _highlightColors;
         private readonly List<CachedLine> _cachedLines;
         private readonly SemaphoreSlim _semaphore;
         private readonly ConcurrentQueue<HighlightedLine> _queue;
@@ -44,13 +45,12 @@ namespace RoslynPad.Editor.Windows
 
         private bool _inHighlightingGroup;
 
-        public RoslynSemanticHighlighter(IDocument document, DocumentId documentId, RoslynHost roslynHost)
+        public RoslynSemanticHighlighter(IDocument document, DocumentId documentId, IRoslynHost roslynHost, IClassificationHighlightColors highlightColors)
         {
-            if (document == null)
-                throw new ArgumentNullException(nameof(document));
-            _document = document;
+            _document = document ?? throw new ArgumentNullException(nameof(document));
             _documentId = documentId;
             _roslynHost = roslynHost;
+            _highlightColors = highlightColors;
             _semaphore = new SemaphoreSlim(0);
             _queue = new ConcurrentQueue<HighlightedLine>();
 
@@ -168,11 +168,15 @@ namespace RoslynPad.Editor.Windows
                 HighlightedLine line;
                 if (!_queue.TryDequeue(out line)) continue;
 
+                var document = _roslynHost.GetDocument(_documentId);
+                if (document == null)
+                    continue;
+
                 var documentLine = line.DocumentLine;
                 IEnumerable<ClassifiedSpan> spans;
                 try
                 {
-                    spans = await GetClassifiedSpansAsync(documentLine).ConfigureAwait(false);
+                    spans = await GetClassifiedSpansAsync(document, documentLine).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -187,7 +191,7 @@ namespace RoslynPad.Editor.Windows
                     }
                     line.Sections.Add(new HighlightedSection
                     {
-                        Color = ClassificationHighlightColors.GetColor(classifiedSpan.ClassificationType),
+                        Color = _highlightColors.GetBrush(classifiedSpan.ClassificationType),
                         Offset = classifiedSpan.TextSpan.Start,
                         Length = classifiedSpan.TextSpan.Length
                     });
@@ -213,9 +217,8 @@ namespace RoslynPad.Editor.Windows
             }
         }
 
-        private async Task<IEnumerable<ClassifiedSpan>> GetClassifiedSpansAsync(IDocumentLine documentLine)
+        private async Task<IEnumerable<ClassifiedSpan>> GetClassifiedSpansAsync(Document document, IDocumentLine documentLine)
         {
-            var document = _roslynHost.GetDocument(_documentId);
             var text = await document.GetTextAsync().ConfigureAwait(false);
             if (text.Length >= documentLine.Offset + documentLine.TotalLength)
             {
@@ -226,7 +229,7 @@ namespace RoslynPad.Editor.Windows
             return Array.Empty<ClassifiedSpan>();
         }
 
-        HighlightingColor IHighlighter.DefaultTextColor => ClassificationHighlightColors.DefaultColor;
+        HighlightingColor IHighlighter.DefaultTextColor => _highlightColors.DefaultBrush;
 
         public void BeginHighlighting()
         {
@@ -266,13 +269,8 @@ namespace RoslynPad.Editor.Windows
 
             public CachedLine(HighlightedLine highlightedLine, ITextSourceVersion fileVersion)
             {
-                if (highlightedLine == null)
-                    throw new ArgumentNullException(nameof(highlightedLine));
-                if (fileVersion == null)
-                    throw new ArgumentNullException(nameof(fileVersion));
-
-                HighlightedLine = highlightedLine;
-                OldVersion = fileVersion;
+                HighlightedLine = highlightedLine ?? throw new ArgumentNullException(nameof(highlightedLine));
+                OldVersion = fileVersion ?? throw new ArgumentNullException(nameof(fileVersion));
                 IsValid = true;
             }
         }

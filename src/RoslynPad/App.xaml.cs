@@ -1,15 +1,6 @@
-﻿using System;
-using System.Windows;
-using RoslynPad.Properties;
-
-namespace RoslynPad
+﻿namespace RoslynPad
 {
     public partial class App
     {
-        protected override void OnExit(ExitEventArgs e)
-        {
-            base.OnExit(e);
-            Settings.Default.Save();
-        }
     }
 }

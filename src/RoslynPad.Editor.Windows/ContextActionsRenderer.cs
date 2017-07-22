@@ -29,7 +29,7 @@ using System.Windows.Threading;
 
 namespace RoslynPad.Editor.Windows
 {
-    internal sealed class ContextActionsRenderer : IDisposable
+    public sealed class ContextActionsRenderer : IDisposable
     {
         private const int DelayMoveMilliseconds = 500;
 
@@ -44,8 +44,7 @@ namespace RoslynPad.Editor.Windows
 
         public ContextActionsRenderer(CodeTextEditor editor, TextMarkerService textMarkerService)
         {
-            if (editor == null) throw new ArgumentNullException(nameof(editor));
-            _editor = editor;
+            _editor = editor ?? throw new ArgumentNullException(nameof(editor));
             _textMarkerService = textMarkerService;
 
             editor.TextArea.Caret.PositionChanged += CaretPositionChanged;

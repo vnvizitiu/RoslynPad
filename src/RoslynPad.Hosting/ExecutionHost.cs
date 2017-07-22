@@ -15,10 +15,12 @@ using System.Xml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.CodeAnalysis.Scripting.Hosting;
 using RoslynPad.Roslyn;
 using RoslynPad.Roslyn.Scripting;
 using RoslynPad.Runtime;
 using RoslynPad.Utilities;
+using InteractiveAssemblyLoader = RoslynPad.Roslyn.Scripting.InteractiveAssemblyLoader;
 
 namespace RoslynPad.Hosting
 {
@@ -37,6 +39,10 @@ namespace RoslynPad.Hosting
         private readonly IEnumerable<string> _references;
         private readonly IEnumerable<string> _imports;
         private readonly NuGetConfiguration _nuGetConfiguration;
+        private readonly bool _shadowCopyAssemblies;
+        private readonly OptimizationLevel _optimizationLevel;
+        private readonly bool _checkOverflow;
+        private readonly bool _allowUnsafe;
 
         private LazyRemoteService _lazyRemoteService;
         private bool _disposed;
@@ -153,13 +159,18 @@ namespace RoslynPad.Hosting
 
         public ExecutionHost(string hostPath, string initialWorkingDirectory,
             IEnumerable<string> references, IEnumerable<string> imports,
-            NuGetConfiguration nuGetConfiguration)
+            NuGetConfiguration nuGetConfiguration, bool shadowCopyAssemblies = true,
+            OptimizationLevel optimizationLevel = OptimizationLevel.Debug, bool checkOverflow = false, bool allowUnsafe = true)
         {
             HostPath = hostPath;
             _initialWorkingDirectory = initialWorkingDirectory;
             _references = references;
             _imports = imports;
             _nuGetConfiguration = nuGetConfiguration;
+            _shadowCopyAssemblies = shadowCopyAssemblies;
+            _optimizationLevel = optimizationLevel;
+            _checkOverflow = checkOverflow;
+            _allowUnsafe = allowUnsafe;
         }
 
         public string HostPath { get; set; }
@@ -245,7 +256,8 @@ namespace RoslynPad.Hosting
                     cancellationToken.ThrowIfCancellationRequested();
 
                     newService.Initialize(_references.ToArray(), _imports.ToArray(), _nuGetConfiguration,
-                        _initialWorkingDirectory);
+                        _initialWorkingDirectory, _shadowCopyAssemblies,
+                        _optimizationLevel, _checkOverflow, _allowUnsafe);
                 }
                 catch (CommunicationException) when (!newProcess.IsAlive())
                 {
@@ -375,7 +387,8 @@ namespace RoslynPad.Hosting
         {
             [OperationContract]
             Task Initialize(IList<string> references, IList<string> imports, NuGetConfiguration nuGetConfiguration,
-                string workingDirectory);
+                string workingDirectory, bool shadowCopyAssemblies,
+                OptimizationLevel optimizationLevel = OptimizationLevel.Debug, bool checkOverflow = false, bool allowUnsafe = true);
 
             [OperationContract]
             Task<ExceptionResultObject> ExecuteAsync(string code);
@@ -408,6 +421,25 @@ namespace RoslynPad.Hosting
             private const int WindowMillisecondsTimeout = 500;
             private const int WindowMaxCount = 10000;
 
+            private static readonly ImmutableArray<string> SystemNoShadowCopyDirectories = GetSystemNoShadowCopyDirectories();
+
+            private static ImmutableArray<string> GetSystemNoShadowCopyDirectories()
+            {
+                var paths = new List<string>
+                {
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    RuntimeEnvironment.GetRuntimeDirectory()
+                };
+
+                if (Environment.Is64BitOperatingSystem)
+                {
+                    paths.Add(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86));
+                }
+
+                return paths.ToImmutableArray();
+            }
+
             private readonly ConcurrentQueue<ResultObject> _dumpQueue;
             private readonly SemaphoreSlim _dumpLock;
 
@@ -415,6 +447,10 @@ namespace RoslynPad.Hosting
             private IServiceCallback _callbackChannel;
             private CSharpParseOptions _parseOptions;
             private string _workingDirectory;
+            private bool _shadowCopyAssemblies;
+            private OptimizationLevel _optimizationLevel;
+            private bool _checkOverflow;
+            private bool _allowUnsafe;
 
             public Service()
             {
@@ -426,7 +462,8 @@ namespace RoslynPad.Hosting
             }
 
             public Task Initialize(IList<string> references, IList<string> imports,
-                NuGetConfiguration nuGetConfiguration, string workingDirectory)
+                NuGetConfiguration nuGetConfiguration, string workingDirectory, bool shadowCopyAssemblies,
+                OptimizationLevel optimizationLevel = OptimizationLevel.Debug, bool checkOverflow = false, bool allowUnsafe = true)
             {
                 _parseOptions = new CSharpParseOptions().WithPreprocessorSymbols("__DEMO__", "__DEMO_EXPERIMENTAL__");
 
@@ -441,6 +478,11 @@ namespace RoslynPad.Hosting
                     scriptOptions = scriptOptions.WithMetadataResolver(resolver);
                 }
                 _scriptOptions = scriptOptions;
+
+                _shadowCopyAssemblies = shadowCopyAssemblies;
+                _optimizationLevel = optimizationLevel;
+                _checkOverflow = checkOverflow;
+                _allowUnsafe = allowUnsafe;
 
                 _callbackChannel = OperationContext.Current.GetCallbackChannel<IServiceCallback>();
 
@@ -610,7 +652,16 @@ namespace RoslynPad.Hosting
             {
                 var script = new ScriptRunner(code, _parseOptions, outputKind, platform, 
                     options.MetadataReferences, options.Imports,
-                    options.FilePath, _workingDirectory, options.MetadataResolver);
+                    options.FilePath, _workingDirectory, options.MetadataResolver,
+                    assemblyLoader: _shadowCopyAssemblies 
+                        ? new InteractiveAssemblyLoader(
+                            new MetadataShadowCopyProvider(Path.GetTempPath(), SystemNoShadowCopyDirectories)) 
+                        : null,
+                    optimizationLevel: _optimizationLevel,
+                    checkOverflow: _checkOverflow,
+                    allowUnsafe: _allowUnsafe
+                    );
+
                 return script;
             }
 

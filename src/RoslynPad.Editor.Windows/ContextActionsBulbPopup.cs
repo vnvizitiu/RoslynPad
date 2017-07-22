@@ -82,7 +82,7 @@ namespace RoslynPad.Editor.Windows
 
         private Style CreateItemContainerStyle()
         {
-            var style = new Style(typeof(MenuItem));
+            var style = new Style(typeof(MenuItem), TryFindResource(typeof(MenuItem)) as Style);
             style.Setters.Add(new Setter(MenuItem.CommandProperty,
                 new Binding { Converter = new ActionCommandConverter(this) }));
             style.Seal();
@@ -91,8 +91,8 @@ namespace RoslynPad.Editor.Windows
 
         public IEnumerable<object> ItemsSource
         {
-            get { return (IEnumerable<object>)_mainItem.ItemsSource; }
-            set { _mainItem.ItemsSource = value; }
+            get => (IEnumerable<object>)_mainItem.ItemsSource;
+            set => _mainItem.ItemsSource = value;
         }
 
         public bool HasItems => _mainItem.HasItems;
@@ -111,8 +111,8 @@ namespace RoslynPad.Editor.Windows
 
         public bool IsMenuOpen
         {
-            get { return _mainItem.IsSubmenuOpen; }
-            set { _mainItem.IsSubmenuOpen = value; }
+            get => _mainItem.IsSubmenuOpen;
+            set => _mainItem.IsSubmenuOpen = value;
         }
 
         public Func<object, ICommand> CommandProvider { get; set; }

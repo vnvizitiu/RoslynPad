@@ -28,13 +28,14 @@ namespace RoslynPad
 
         internal MainWindow()
         {
+            Loaded += OnLoaded;
+
             var container = new ContainerConfiguration()
                 .WithAssembly(typeof(MainViewModel).Assembly)   // RoslynPad.Common.UI
                 .WithAssembly(typeof(MainWindow).Assembly);     // RoslynPad
             var locator = container.CreateContainer().GetExport<IServiceLocator>();
 
             _viewModel = locator.GetInstance<MainViewModel>();
-            _viewModel.Initialize();
 
             DataContext = _viewModel;
             InitializeComponent();
@@ -42,6 +43,13 @@ namespace RoslynPad
 
             LoadWindowLayout();
             LoadDockLayout();
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= OnLoaded;
+
+            _viewModel.Initialize();
         }
 
         protected override async void OnClosing(CancelEventArgs e)
@@ -52,8 +60,7 @@ namespace RoslynPad
             {
                 SaveDockLayout();
                 SaveWindowLayout();
-                Properties.Settings.Default.Save();
-
+                
                 _isClosing = true;
                 IsEnabled = false;
                 e.Cancel = true;
@@ -68,7 +75,8 @@ namespace RoslynPad
                 }
 
                 _isClosed = true;
-                Close();
+                // ReSharper disable once UnusedVariable
+                var closeTask = Dispatcher.InvokeAsync(Close);
             }
             else
             {
@@ -78,21 +86,26 @@ namespace RoslynPad
 
         private void LoadWindowLayout()
         {
-            var boundsString = Properties.Settings.Default.WindowBounds;
+            var boundsString = _viewModel.Settings.WindowBounds;
             if (!string.IsNullOrEmpty(boundsString))
             {
-                var bounds = Rect.Parse(boundsString);
-                if (bounds != default(Rect))
+                try
                 {
-                    Left = bounds.Left;
-                    Top = bounds.Top;
-                    Width = bounds.Width;
-                    Height = bounds.Height;
+                    var bounds = Rect.Parse(boundsString);
+                    if (bounds != default(Rect))
+                    {
+                        Left = bounds.Left;
+                        Top = bounds.Top;
+                        Width = bounds.Width;
+                        Height = bounds.Height;
+                    }
+                }
+                catch (FormatException)
+                {
                 }
             }
 
-            WindowState state;
-            if (Enum.TryParse(Properties.Settings.Default.WindowState, out state) &&
+            if (Enum.TryParse(_viewModel.Settings.WindowState, out WindowState state) &&
                 state != WindowState.Minimized)
             {
                 WindowState = state;
@@ -101,18 +114,25 @@ namespace RoslynPad
 
         private void SaveWindowLayout()
         {
-            Properties.Settings.Default.WindowBounds = RestoreBounds.ToString(CultureInfo.InvariantCulture);
-            Properties.Settings.Default.WindowState = WindowState.ToString();
+            _viewModel.Settings.WindowBounds = RestoreBounds.ToString(CultureInfo.InvariantCulture);
+            _viewModel.Settings.WindowState = WindowState.ToString();
         }
 
         private void LoadDockLayout()
         {
-            var layout = Properties.Settings.Default.DockLayout;
+            var layout = _viewModel.Settings.DockLayout;
             if (string.IsNullOrEmpty(layout)) return;
 
             var serializer = new XmlLayoutSerializer(DockingManager);
             var reader = new StringReader(layout);
-            serializer.Deserialize(reader);
+            try
+            {
+                serializer.Deserialize(reader);
+            }
+            catch
+            {
+                // ignored
+            }
         }
 
         private void SaveDockLayout()
@@ -124,7 +144,7 @@ namespace RoslynPad
                 serializer.Serialize(writer);
             }
             document.Root?.Element("FloatingWindows")?.Remove();
-            Properties.Settings.Default.DockLayout = document.ToString();
+            _viewModel.Settings.DockLayout = document.ToString();
         }
 
         protected override void OnClosed(EventArgs e)
@@ -133,29 +153,7 @@ namespace RoslynPad
 
             Application.Current.Shutdown();
         }
-
-        private void OnDocumentClick(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                OpenDocument(e.Source);
-            }
-        }
-
-        private void OnDocumentKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                OpenDocument(e.Source);
-            }
-        }
-
-        private void OpenDocument(object source)
-        {
-            var documentViewModel = (DocumentViewModel)((FrameworkElement)source).DataContext;
-            _viewModel.OpenDocument(documentViewModel);
-        }
-
+        
         private async void DockingManager_OnDocumentClosing(object sender, DocumentClosingEventArgs e)
         {
             e.Cancel = true;
@@ -174,22 +172,6 @@ namespace RoslynPad
         private void ViewUpdateClick(object sender, RoutedEventArgs e)
         {
             Task.Run(() => Process.Start("https://roslynpad.net/"));
-        }
-
-        private void DocumentsContextMenu_OpenFolder_Click(object sender, RoutedEventArgs e)
-        {
-            var documentViewModel = ((FrameworkElement)e.Source).DataContext as DocumentViewModel;
-            if (documentViewModel != null)
-            {
-                if (documentViewModel.IsFolder)
-                {
-                    Task.Run(() => Process.Start(documentViewModel.Path));
-                }
-                else
-                {
-                    Task.Run(() => Process.Start("explorer.exe", "/select," + documentViewModel.Path));
-                }
-            }
         }
     }
 }
